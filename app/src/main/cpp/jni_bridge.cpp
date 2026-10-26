@@ -88,11 +88,13 @@ Java_com_voicechanger_app_engine_NativeBridge_nativeDestroy(JNIEnv*, jclass, jlo
 
 JNIEXPORT void JNICALL
 Java_com_voicechanger_app_engine_NativeBridge_nativeSetParams(JNIEnv*, jclass, jlong h, jfloat pitch,
-                                                              jfloat formant, jfloat brightness, jfloat mix) {
+                                                              jfloat formant, jfloat brightness, jfloat breathiness,
+                                                              jfloat mix) {
   vc::VoiceParams p;
   p.pitchSemitones = pitch;
   p.formantRatio = formant;
   p.brightnessDb = brightness;
+  p.breathiness = breathiness;
   p.mix = mix;
   fromLong(h)->engine.setParams(p);
 }

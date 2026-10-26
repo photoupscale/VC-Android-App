@@ -30,7 +30,7 @@ data class VcSettings(
     val activeNow: Boolean = false,
     val apps: Set<String> = setOf(TargetApp.WhatsApp.packageName, TargetApp.Messenger.packageName),
     val presetId: String = "f_soft",
-    val custom: VoiceParams = VoiceParams(pitchSemitones = 5f, formantRatio = 1.15f),
+    val custom: VoiceParams = VoiceParams(pitchSemitones = 5f, formantRatio = 1.15f, breathiness = 0.15f),
     /** Bumped on every save so hooked processes can tell when to re-apply. */
     val revision: Long = 0,
 ) {
@@ -55,6 +55,7 @@ object Prefs {
     private const val C_PITCH = "custom_pitch"
     private const val C_FORMANT = "custom_formant"
     private const val C_BRIGHT = "custom_brightness"
+    private const val C_BREATH = "custom_breathiness"
     private const val REVISION = "revision"
 
     fun read(p: SharedPreferences): VcSettings {
@@ -69,6 +70,7 @@ object Prefs {
                 pitchSemitones = p.getFloat(C_PITCH, d.custom.pitchSemitones),
                 formantRatio = p.getFloat(C_FORMANT, d.custom.formantRatio),
                 brightnessDb = p.getFloat(C_BRIGHT, d.custom.brightnessDb),
+                breathiness = p.getFloat(C_BREATH, d.custom.breathiness),
             ),
             revision = p.getLong(REVISION, 0L),
         )
@@ -84,7 +86,9 @@ object Prefs {
             .putFloat(C_PITCH, s.custom.pitchSemitones)
             .putFloat(C_FORMANT, s.custom.formantRatio)
             .putFloat(C_BRIGHT, s.custom.brightnessDb)
+            .putFloat(C_BREATH, s.custom.breathiness)
             .putLong(REVISION, s.revision)
-            .commit()
+            // apply() writes in the background; commit() here blocked the UI on every slider move.
+            .apply()
     }
 }

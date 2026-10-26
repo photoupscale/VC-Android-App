@@ -22,16 +22,19 @@ call conversion is only possible with root.
   vocal tract) are kept or moved independently of pitch. Moving both together is
   what makes a male → female change sound like a person instead of a chipmunk.
 - High-shelf brightness control, smooth on/off crossfade, soft limiter.
+- Breathiness: envelope-shaped aspiration noise above ~1.5 kHz, which makes shifted
+  male voices sound much less buzzy and more like a real female voice.
 - Real-time safe: no allocation or locks in the audio path.
 
 Presets live in `app/src/main/java/com/voicechanger/app/engine/VoicePresets.kt`.
 
 ## Features
 
-- Male → female: Soft, Young, Mature, Husky
-- Female → male: Deep, Warm, Young, Baritone
-- Fun: Child, Giant
-- Custom pitch / formant / brightness sliders
+- 24 male → female voices, from deep alto to light soprano, each with its own pitch,
+  formant, brightness and breathiness
+- 8 female → male voices
+- Fun: Child, Giant, Chipmunk, Monster
+- Custom pitch / formant / brightness / breathiness sliders
 - **Auto-activate in background**: converts every call without opening the app.
   Turn it off for manual mode and use the "Voice changer" Quick Settings tile per call.
 - Per-app choice: WhatsApp, WhatsApp Business, Messenger, Facebook
@@ -55,7 +58,7 @@ Engine tests and an offline WAV tool for tuning presets:
 ```sh
 cmake -S engine -B build/engine && cmake --build build/engine
 ctest --test-dir build/engine
-build/engine/vc_wav in.wav out.wav 5 1.16 1.5   # pitch semitones, formant ratio, brightness dB
+build/engine/vc_wav in.wav out.wav 5 1.16 1.5 0.18   # pitch semitones, formant ratio, brightness dB, breathiness
 ```
 
 ## Known limits

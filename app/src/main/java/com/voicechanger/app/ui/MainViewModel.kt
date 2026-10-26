@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.voicechanger.app.audio.LiveMonitor
 import com.voicechanger.app.engine.NativeBridge
 import com.voicechanger.app.engine.VoiceParams
+import com.voicechanger.app.engine.VoicePresets
 import com.voicechanger.app.hook.ModuleStatus
 import com.voicechanger.app.settings.SettingsRepository
 import com.voicechanger.app.settings.VcSettings
@@ -34,7 +35,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectPreset(id: String) = update { it.copy(presetId = id) }
 
-    fun setCustom(params: VoiceParams) = update { it.copy(custom = params) }
+    fun setCustom(params: VoiceParams) = update { it.copy(custom = params, presetId = VoicePresets.CUSTOM_ID) }
 
     fun toggleMonitor() {
         if (monitor.isRunning) monitor.stop() else monitor.start(settings.value.voice())

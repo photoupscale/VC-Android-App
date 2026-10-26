@@ -1,6 +1,7 @@
 // Sanity checks for the DSP engine: pitch lands where expected, output level
 // stays close to input, and the engine stays stable on silence and noise.
 
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -39,6 +40,18 @@ float dominantHz(const std::vector<float>& x, size_t from, int sr) {
     if (std::abs(buf[k]) > std::abs(buf[best])) best = k;
   }
   return static_cast<float>(best) * sr / n;
+}
+
+// Energy above 2 kHz, where breath noise lives.
+float highBand(const std::vector<float>& x, size_t from, int sr) {
+  const int n = 8192;
+  vc::Fft fft(n);
+  std::vector<std::complex<float>> buf(n);
+  for (int i = 0; i < n; ++i) buf[i] = x[from + i] * (0.5f - 0.5f * std::cos(2 * M_PI * i / n));
+  fft.forward(buf.data());
+  double e = 0;
+  for (int k = 2000 * n / sr; k < n / 2; ++k) e += std::norm(buf[k]);
+  return static_cast<float>(e);
 }
 
 std::vector<float> run(int sr, const std::vector<float>& in, vc::VoiceParams p) {
@@ -94,10 +107,45 @@ int main() {
     std::snprintf(msg, sizeof msg, "%d Hz: stable and bounded on noise", sr);
     check(finite, msg);
 
+    // Voice-like source: 140 Hz with harmonics falling off at 12 dB/octave.
+    std::vector<float> voice(sr * 2);
+    for (size_t i = 0; i < voice.size(); ++i) {
+      float v = 0.0f;
+      for (int h = 1; 140 * h < sr / 2 && h <= 40; ++h) v += std::sin(2 * M_PI * 140.0 * h * i / sr) / (h * h);
+      voice[i] = 0.25f * v;
+    }
+    vc::VoiceParams female;
+    female.pitchSemitones = 5;
+    female.formantRatio = 1.16f;
+    const auto plainOut = run(sr, voice, female);
+    vc::VoiceParams breathy = female;
+    breathy.breathiness = 0.4f;
+    const auto breathOut = run(sr, voice, breathy);
+    const float hfGainDb = 10.0f * std::log10(highBand(breathOut, sr / 2, sr) / highBand(plainOut, sr / 2, sr));
+    const float levelRatio = rms(breathOut, sr / 2) / rms(plainOut, sr / 2);
+    std::snprintf(msg, sizeof msg, "%d Hz: breathiness 0.4 adds air above 2 kHz (+%.1f dB) without changing loudness (x%.2f)",
+                  sr, hfGainDb, levelRatio);
+    check(hfGainDb > 1.5f && hfGainDb < 15.0f && levelRatio < 1.3f, msg);
+
     std::vector<float> silence(sr, 0.0f);
-    out = run(sr, silence, up);
+    out = run(sr, silence, breathy);
     std::snprintf(msg, sizeof msg, "%d Hz: silence stays silent", sr);
     check(rms(out, 0) < 1e-4f, msg);
+  }
+  // Rough CPU budget: one second of 48 kHz audio must convert far faster than real time.
+  {
+    std::vector<float> speechish(48000 * 10);
+    for (size_t i = 0; i < speechish.size(); ++i) {
+      speechish[i] = 0.2f * std::sin(2 * M_PI * 140.0 * i / 48000) + 0.05f * std::sin(2 * M_PI * 2400.0 * i / 48000);
+    }
+    vc::VoiceParams p;
+    p.pitchSemitones = 5;
+    p.formantRatio = 1.16f;
+    p.breathiness = 0.2f;
+    const auto t0 = std::chrono::steady_clock::now();
+    run(48000, speechish, p);
+    const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("INFO 10 s of 48 kHz audio converted in %.3f s (%.1f%% of real time)\n", secs, secs * 10.0);
   }
   return failures == 0 ? 0 : 1;
 }

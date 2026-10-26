@@ -22,9 +22,7 @@ int chooseLifter(int sampleRate) {
 }
 
 inline float wrapPhase(float x) {
-  x = std::fmod(x + kPi, kTwoPi);
-  if (x < 0) x += kTwoPi;
-  return x - kPi;
+  return x - kTwoPi * std::nearbyint(x / kTwoPi);
 }
 
 inline float softClip(float x) {
@@ -56,6 +54,8 @@ VoiceEngine::VoiceEngine(int sampleRate)
       synMag_(fftSize_ / 2 + 1),
       synFreq_(fftSize_ / 2 + 1),
       rover_(0),
+      shelf_(fftSize_ / 2 + 1, 1.0f),
+      breathWeight_(fftSize_ / 2 + 1),
       dryDelay_(fftSize_) {
   for (int i = 0; i < fftSize_; ++i) {
     window_[i] = 0.5f - 0.5f * std::cos(kTwoPi * i / fftSize_);
@@ -63,6 +63,11 @@ VoiceEngine::VoiceEngine(int sampleRate)
   float sumSq = 0.0f;
   for (float w : window_) sumSq += w * w;
   olaGain_ = sumSq / hop_;
+  const float binHz = static_cast<float>(sampleRate_) / fftSize_;
+  for (int k = 0; k <= fftSize_ / 2; ++k) {
+    const float hz = k * binHz;
+    breathWeight_[k] = 1.0f / (1.0f + std::exp(-(hz - 1500.0f) / 300.0f));
+  }
   reset();
 }
 
@@ -70,6 +75,7 @@ void VoiceEngine::setParams(const VoiceParams& p) {
   pPitch_.store(std::clamp(p.pitchSemitones, -12.0f, 12.0f));
   pFormant_.store(std::clamp(p.formantRatio, 0.6f, 1.6f));
   pBright_.store(std::clamp(p.brightnessDb, -12.0f, 12.0f));
+  pBreath_.store(std::clamp(p.breathiness, 0.0f, 1.0f));
   pMix_.store(std::clamp(p.mix, 0.0f, 1.0f));
 }
 
@@ -149,7 +155,17 @@ void VoiceEngine::processFrame() {
   pitch_ = std::pow(2.0f, pPitch_.load() / 12.0f);
   formant_ = pFormant_.load();
   brightDb_ = pBright_.load();
+  breath_ = pBreath_.load();
   mix_ = pMix_.load();
+  if (brightDb_ != shelfDb_) {
+    // Rebuilt only when brightness changes, not every frame.
+    shelfDb_ = brightDb_;
+    const float gain = std::pow(10.0f, brightDb_ / 20.0f);
+    for (int k = 0; k <= half; ++k) {
+      const float hz = k * binHz;
+      shelf_[k] = 1.0f + (gain - 1.0f) / (1.0f + std::exp(-(hz - 3000.0f) / 400.0f));
+    }
+  }
 
   // --- Analysis ---
   for (int k = 0; k < n; ++k) {
@@ -173,15 +189,20 @@ void VoiceEngine::processFrame() {
   // --- Pitch shift the flattened excitation ---
   std::fill(synMag_.begin(), synMag_.end(), 0.0f);
   std::fill(synFreq_.begin(), synFreq_.end(), 0.0f);
+  float excitationSum = 0.0f;
   for (int k = 0; k <= half; ++k) {
+    const float exc = anaMag_[k] / (env_[k] + 1e-9f);
+    excitationSum += exc * exc;
     const int idx = static_cast<int>(std::lround(k * pitch_));
-    if (idx > half) break;
-    synMag_[idx] += anaMag_[k] / (env_[k] + 1e-9f);
+    if (idx > half) continue;
+    synMag_[idx] += exc;
     synFreq_[idx] = anaFreq_[k] * pitch_;
   }
+  // Breath noise sits at the excitation's RMS level and is then coloured by the
+  // envelope, so it follows the voice and is silent when the speaker is.
+  const float noiseLevel = 3.0f * breath_ * std::sqrt(excitationSum / (half + 1));
 
   // --- Re-apply warped envelope + brightness, then resynthesise ---
-  const float shelfGain = std::pow(10.0f, brightDb_ / 20.0f);
   for (int k = 0; k <= half; ++k) {
     const float src = k / formant_;
     float e;
@@ -192,15 +213,21 @@ void VoiceEngine::processFrame() {
       const float frac = src - i0;
       e = env_[i0] * (1.0f - frac) + env_[i0 + 1] * frac;
     }
-    const float hz = k * binHz;
-    const float shelf = 1.0f + (shelfGain - 1.0f) / (1.0f + std::exp(-(hz - 3000.0f) / 400.0f));
-    const float mag = synMag_[k] * e * shelf;
+    const float colour = e * shelf_[k];
+    const float mag = synMag_[k] * colour;
 
     float delta = synFreq_[k] - k;
     delta = kTwoPi * delta / oversample_;
     delta += k * expected;
     sumPhase_[k] = wrapPhase(sumPhase_[k] + delta);
     spectrum_[k] = std::polar(mag, sumPhase_[k]);
+    if (noiseLevel > 0.0f && breathWeight_[k] > 0.01f) {
+      rng_ ^= rng_ << 13;
+      rng_ ^= rng_ >> 17;
+      rng_ ^= rng_ << 5;
+      const float u = (rng_ >> 8) * (1.0f / 16777216.0f);
+      spectrum_[k] += std::polar(noiseLevel * breathWeight_[k] * colour, kTwoPi * u);
+    }
   }
   for (int k = half + 1; k < n; ++k) spectrum_[k] = 0.0f;
 

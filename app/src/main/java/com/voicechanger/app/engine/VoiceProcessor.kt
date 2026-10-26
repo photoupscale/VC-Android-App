@@ -15,7 +15,7 @@ class VoiceProcessor(val sampleRate: Int) : Closeable {
     val latencyMs: Int get() = NativeBridge.nativeLatencyMs(handle)
 
     fun setVoice(voice: VoiceParams) {
-        NativeBridge.nativeSetParams(handle, voice.pitchSemitones, voice.formantRatio, voice.brightnessDb, voice.mix)
+        NativeBridge.nativeSetParams(handle, voice.pitchSemitones, voice.formantRatio, voice.brightnessDb, voice.breathiness, voice.mix)
     }
 
     fun setEnabled(enabled: Boolean) = NativeBridge.nativeSetEnabled(handle, enabled)

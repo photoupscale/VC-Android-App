@@ -12,8 +12,8 @@ android {
         applicationId = "com.voicechanger.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -27,8 +27,11 @@ android {
 
     buildTypes {
         release {
-            // Keep hook and JNI classes intact; LSPosed and JNI look them up by name.
-            isMinifyEnabled = false
+            // R8 makes the Compose UI noticeably faster. proguard-rules.pro keeps the
+            // hook and JNI classes that LSPosed and native code look up by name.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }
     }

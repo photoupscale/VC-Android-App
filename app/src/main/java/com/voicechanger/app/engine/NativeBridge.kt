@@ -30,7 +30,7 @@ object NativeBridge {
 
     @JvmStatic external fun nativeCreate(sampleRate: Int): Long
     @JvmStatic external fun nativeDestroy(handle: Long)
-    @JvmStatic external fun nativeSetParams(handle: Long, pitch: Float, formant: Float, brightness: Float, mix: Float)
+    @JvmStatic external fun nativeSetParams(handle: Long, pitch: Float, formant: Float, brightness: Float, breathiness: Float, mix: Float)
     @JvmStatic external fun nativeSetEnabled(handle: Long, enabled: Boolean)
     @JvmStatic external fun nativeLatencyMs(handle: Long): Int
     @JvmStatic external fun nativeProcessShorts(handle: Long, data: ShortArray, offset: Int, length: Int, channels: Int)

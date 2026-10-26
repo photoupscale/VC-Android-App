@@ -49,8 +49,15 @@ fun VoicesScreen(vm: MainViewModel, requireMic: (() -> Unit) -> Unit, modifier: 
             }
         }
         VoiceCategory.entries.forEach { category ->
-            item { Text(category.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp)) }
-            items(VoicePresets.all.filter { it.category == category }, key = { it.id }) { preset ->
+            val presets = VoicePresets.all.filter { it.category == category }
+            item {
+                Text(
+                    "${category.title} (${presets.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            items(presets, key = { it.id }) { preset ->
                 PresetCard(preset, selected = s.presetId == preset.id) { vm.selectPreset(preset.id) }
             }
         }
@@ -65,15 +72,15 @@ fun VoicesScreen(vm: MainViewModel, requireMic: (() -> Unit) -> Unit, modifier: 
                     val c = s.custom
                     LabeledSlider("Pitch", "%+.1f semitones".format(Locale.US, c.pitchSemitones), c.pitchSemitones, -12f..12f) {
                         vm.setCustom(c.copy(pitchSemitones = it))
-                        vm.selectPreset(VoicePresets.CUSTOM_ID)
                     }
                     LabeledSlider("Formant", "x%.2f".format(Locale.US, c.formantRatio), c.formantRatio, 0.7f..1.4f) {
                         vm.setCustom(c.copy(formantRatio = it))
-                        vm.selectPreset(VoicePresets.CUSTOM_ID)
                     }
                     LabeledSlider("Brightness", "%+.1f dB".format(Locale.US, c.brightnessDb), c.brightnessDb, -6f..6f) {
                         vm.setCustom(c.copy(brightnessDb = it))
-                        vm.selectPreset(VoicePresets.CUSTOM_ID)
+                    }
+                    LabeledSlider("Breathiness", "%.0f%%".format(Locale.US, c.breathiness * 100), c.breathiness, 0f..0.6f) {
+                        vm.setCustom(c.copy(breathiness = it))
                     }
                     Text(
                         "Tip: for a natural result move formant about 3% per semitone of pitch, in the same direction.",

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <complex>
 #include <vector>
 
@@ -15,6 +16,10 @@ struct VoiceParams {
   float formantRatio = 1.0f;
   // High-shelf tilt above ~3 kHz in dB. Female voices usually sit slightly brighter.
   float brightnessDb = 0.0f;
+  // 0..1 aspiration noise shaped by the vocal tract above ~1.5 kHz. Female
+  // voices are naturally breathier; a little of this hides the "buzzy" sound
+  // of a shifted male voice.
+  float breathiness = 0.0f;
   // Dry/wet mix, 1 = fully converted.
   float mix = 1.0f;
 };
@@ -73,8 +78,12 @@ class VoiceEngine {
   int rover_;
 
   // Pending params written by the UI thread, current params used by audio thread.
-  std::atomic<float> pPitch_{0.0f}, pFormant_{1.0f}, pBright_{0.0f}, pMix_{1.0f};
-  float pitch_ = 1.0f, formant_ = 1.0f, brightDb_ = 0.0f, mix_ = 1.0f;
+  std::atomic<float> pPitch_{0.0f}, pFormant_{1.0f}, pBright_{0.0f}, pBreath_{0.0f}, pMix_{1.0f};
+  float pitch_ = 1.0f, formant_ = 1.0f, brightDb_ = 0.0f, breath_ = 0.0f, mix_ = 1.0f;
+  float shelfDb_ = 1e9f;  // brightness the shelf_ table was built for
+  std::vector<float> shelf_;
+  std::vector<float> breathWeight_;
+  uint32_t rng_ = 0x9E3779B9u;
   std::atomic<bool> enabled_{true};
   float wet_ = 1.0f;  // smoothed enable crossfade
   std::vector<float> dryDelay_;

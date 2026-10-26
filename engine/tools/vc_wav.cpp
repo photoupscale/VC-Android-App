@@ -1,7 +1,7 @@
 // Desktop tool for tuning presets: converts a 16-bit PCM WAV file offline
 // using the same engine the app runs on the phone.
 //
-//   vc_wav in.wav out.wav <pitchSemitones> <formantRatio> [brightnessDb]
+//   vc_wav in.wav out.wav <pitchSemitones> <formantRatio> [brightnessDb] [breathiness]
 
 #include <cstdint>
 #include <cstdio>
@@ -89,7 +89,7 @@ bool writeWav(const char* path, int sampleRate, const std::vector<float>& data) 
 
 int main(int argc, char** argv) {
   if (argc < 5) {
-    std::fprintf(stderr, "usage: %s in.wav out.wav pitchSemitones formantRatio [brightnessDb]\n", argv[0]);
+    std::fprintf(stderr, "usage: %s in.wav out.wav pitchSemitones formantRatio [brightnessDb] [breathiness]\n", argv[0]);
     return 2;
   }
   Wav wav;
@@ -102,6 +102,7 @@ int main(int argc, char** argv) {
   p.pitchSemitones = std::strtof(argv[3], nullptr);
   p.formantRatio = std::strtof(argv[4], nullptr);
   p.brightnessDb = argc > 5 ? std::strtof(argv[5], nullptr) : 0.0f;
+  p.breathiness = argc > 6 ? std::strtof(argv[6], nullptr) : 0.0f;
   engine.setParams(p);
   engine.reset();
 

@@ -30,7 +30,6 @@ class LiveMonitor {
         running = true
         pendingVoice = voice
         thread = Thread({ loop() }, "vc-monitor").apply {
-            priority = Thread.MAX_PRIORITY
             start()
         }
     }
@@ -43,6 +42,7 @@ class LiveMonitor {
 
     @SuppressLint("MissingPermission")
     private fun loop() {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
         val rate = SAMPLE_RATE
         val frame = rate / 100 // 10 ms
         val recMin = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
