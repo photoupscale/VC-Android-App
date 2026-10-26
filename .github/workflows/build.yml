@@ -31,7 +31,7 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - name: Build APK
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon assembleRelease assembleDebug
       - name: Verify APK
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
@@ -44,6 +44,11 @@ jobs:
         with:
           name: voice-changer-apk
           path: app/build/outputs/apk/release/*.apk
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-changer-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
