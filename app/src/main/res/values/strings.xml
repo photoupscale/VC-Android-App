@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Voice Changer</string>
+    <string name="tile_label">Voice changer</string>
+    <string name="xposed_description">Real-time male/female voice changer for WhatsApp and Messenger calls</string>
+</resources>
