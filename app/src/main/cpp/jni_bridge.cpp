@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "voice_engine.h"
+#include "voice_match.h"
 
 namespace {
 
@@ -145,6 +146,61 @@ Java_com_voicechanger_app_engine_NativeBridge_nativeProcessDirect(JNIEnv* env, j
   auto* data = static_cast<uint8_t*>(env->GetDirectBufferAddress(buffer));
   if (data == nullptr) return;
   processRaw(fromLong(h), data + offsetBytes, lengthBytes, channels, encoding);
+}
+
+JNIEXPORT void JNICALL
+Java_com_voicechanger_app_engine_NativeBridge_nativeSetEq(JNIEnv* env, jclass, jlong h, jfloatArray gainsDb) {
+  if (gainsDb == nullptr || env->GetArrayLength(gainsDb) < vc::kEqBands) {
+    fromLong(h)->engine.setEq(nullptr);
+    return;
+  }
+  float db[vc::kEqBands];
+  env->GetFloatArrayRegion(gainsDb, 0, vc::kEqBands, db);
+  fromLong(h)->engine.setEq(db);
+}
+
+// Returns [medianF0, voicedSeconds, envelopeDb x kProfilePoints].
+JNIEXPORT jfloatArray JNICALL
+Java_com_voicechanger_app_engine_NativeBridge_nativeAnalyze(JNIEnv* env, jclass, jshortArray pcm, jint length,
+                                                           jint sampleRate) {
+  std::vector<float> samples(length);
+  jshort* data = env->GetShortArrayElements(pcm, nullptr);
+  if (data == nullptr) return nullptr;
+  for (int i = 0; i < length; ++i) samples[i] = data[i] / 32768.0f;
+  env->ReleaseShortArrayElements(pcm, data, JNI_ABORT);
+
+  const vc::VoiceProfile p = vc::analyzeVoice(samples.data(), length, sampleRate);
+  float out[2 + vc::kProfilePoints];
+  out[0] = p.medianF0;
+  out[1] = p.voicedSeconds;
+  std::memcpy(out + 2, p.envelopeDb.data(), sizeof(float) * vc::kProfilePoints);
+  jfloatArray result = env->NewFloatArray(2 + vc::kProfilePoints);
+  env->SetFloatArrayRegion(result, 0, 2 + vc::kProfilePoints, out);
+  return result;
+}
+
+// Takes two arrays from nativeAnalyze; returns [pitch, formant, breathiness, eqDb x kEqBands].
+JNIEXPORT jfloatArray JNICALL
+Java_com_voicechanger_app_engine_NativeBridge_nativeMatch(JNIEnv* env, jclass, jfloatArray source, jfloatArray target) {
+  auto toProfile = [env](jfloatArray a) {
+    vc::VoiceProfile p;
+    if (a == nullptr || env->GetArrayLength(a) < 2 + vc::kProfilePoints) return p;
+    float buf[2 + vc::kProfilePoints];
+    env->GetFloatArrayRegion(a, 0, 2 + vc::kProfilePoints, buf);
+    p.medianF0 = buf[0];
+    p.voicedSeconds = buf[1];
+    std::memcpy(p.envelopeDb.data(), buf + 2, sizeof(float) * vc::kProfilePoints);
+    return p;
+  };
+  const vc::VoiceMatch m = vc::matchVoices(toProfile(source), toProfile(target));
+  float out[3 + vc::kEqBands];
+  out[0] = m.pitchSemitones;
+  out[1] = m.formantRatio;
+  out[2] = m.breathiness;
+  std::memcpy(out + 3, m.eqDb.data(), sizeof(float) * vc::kEqBands);
+  jfloatArray result = env->NewFloatArray(3 + vc::kEqBands);
+  env->SetFloatArrayRegion(result, 0, 3 + vc::kEqBands, out);
+  return result;
 }
 
 }  // extern "C"

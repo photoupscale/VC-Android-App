@@ -35,6 +35,10 @@ Presets live in `app/src/main/java/com/voicechanger/app/engine/VoicePresets.kt`.
 - 8 female → male voices
 - Fun: Child, Giant, Chipmunk, Monster
 - Custom pitch / formant / brightness / breathiness sliders
+- **My voices**: add a voice from a recording of someone (audio file, WhatsApp voice
+  note, video, or recorded live). The app measures the target's pitch, vocal-tract
+  size and tone against a 10 s sample of your own voice and saves matching settings,
+  including a 24-band tone EQ. This approximates the voice; it is not neural cloning.
 - **Auto-activate in background**: converts every call without opening the app.
   Turn it off for manual mode and use the "Voice changer" Quick Settings tile per call.
 - Per-app choice: WhatsApp, WhatsApp Business, Messenger, Facebook

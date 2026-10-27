@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "fft.h"
+#include "voice_match.h"
 
 namespace vc {
 
@@ -39,6 +40,9 @@ class VoiceEngine {
 
   // Thread-safe; picked up at the next analysis frame.
   void setParams(const VoiceParams& p);
+  // Tone-matching EQ: kEqBands gains in dB at eqBandHz(i); nullptr resets to flat.
+  // Thread-safe; picked up at the next analysis frame.
+  void setEq(const float* gainsDb);
   void setEnabled(bool enabled) { enabled_.store(enabled); }
   bool enabled() const { return enabled_.load(); }
 
@@ -88,6 +92,9 @@ class VoiceEngine {
   float wet_ = 1.0f;  // smoothed enable crossfade
   std::vector<float> dryDelay_;
   int dryPos_ = 0;
+  std::array<std::atomic<float>, kEqBands> pendingEq_{};
+  std::atomic<bool> eqDirty_{true};
+  std::vector<float> eqGain_;  // per-bin linear gain
 };
 
 }  // namespace vc

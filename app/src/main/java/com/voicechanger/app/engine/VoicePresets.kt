@@ -6,6 +6,8 @@ data class VoiceParams(
     val brightnessDb: Float = 0f,
     val breathiness: Float = 0f,
     val mix: Float = 1f,
+    /** Tone-matching EQ from a voice sample, [VoiceMatcher.EQ_BANDS] gains in dB. Null = flat. */
+    val eqDb: List<Float>? = null,
 )
 
 enum class VoiceCategory(val title: String) {

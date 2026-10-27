@@ -37,4 +37,11 @@ object NativeBridge {
     @JvmStatic external fun nativeProcessFloats(handle: Long, data: FloatArray, offset: Int, length: Int, channels: Int)
     @JvmStatic external fun nativeProcessBytes(handle: Long, data: ByteArray, offset: Int, lengthBytes: Int, channels: Int, encoding: Int)
     @JvmStatic external fun nativeProcessDirect(handle: Long, data: ByteBuffer, offsetBytes: Int, lengthBytes: Int, channels: Int, encoding: Int)
+
+    /** Tone-matching EQ, [VoiceMatcher.EQ_BANDS] gains in dB; null resets to flat. */
+    @JvmStatic external fun nativeSetEq(handle: Long, gainsDb: FloatArray?)
+    /** Voice profile of mono PCM: [medianF0, voicedSeconds, envelopeDb...]. */
+    @JvmStatic external fun nativeAnalyze(pcm: ShortArray, length: Int, sampleRate: Int): FloatArray
+    /** Settings that turn the source profile into the target: [pitch, formant, breathiness, eqDb...]. */
+    @JvmStatic external fun nativeMatch(source: FloatArray, target: FloatArray): FloatArray
 }

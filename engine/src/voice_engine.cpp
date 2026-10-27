@@ -56,7 +56,8 @@ VoiceEngine::VoiceEngine(int sampleRate)
       rover_(0),
       shelf_(fftSize_ / 2 + 1, 1.0f),
       breathWeight_(fftSize_ / 2 + 1),
-      dryDelay_(fftSize_) {
+      dryDelay_(fftSize_),
+      eqGain_(fftSize_ / 2 + 1, 1.0f) {
   for (int i = 0; i < fftSize_; ++i) {
     window_[i] = 0.5f - 0.5f * std::cos(kTwoPi * i / fftSize_);
   }
@@ -77,6 +78,13 @@ void VoiceEngine::setParams(const VoiceParams& p) {
   pBright_.store(std::clamp(p.brightnessDb, -12.0f, 12.0f));
   pBreath_.store(std::clamp(p.breathiness, 0.0f, 1.0f));
   pMix_.store(std::clamp(p.mix, 0.0f, 1.0f));
+}
+
+void VoiceEngine::setEq(const float* gainsDb) {
+  for (int b = 0; b < kEqBands; ++b) {
+    pendingEq_[b].store(gainsDb ? std::clamp(gainsDb[b], -12.0f, 12.0f) : 0.0f);
+  }
+  eqDirty_.store(true);
 }
 
 void VoiceEngine::reset() {
@@ -157,6 +165,20 @@ void VoiceEngine::processFrame() {
   brightDb_ = pBright_.load();
   breath_ = pBreath_.load();
   mix_ = pMix_.load();
+  if (eqDirty_.exchange(false)) {
+    // Interpolate band gains in log-frequency onto the FFT bins.
+    std::array<float, kEqBands> db;
+    for (int b = 0; b < kEqBands; ++b) db[b] = pendingEq_[b].load();
+    const float logMin = std::log(kEqMinHz);
+    const float perBand = std::log(kEqMaxHz / kEqMinHz) / (kEqBands - 1);
+    for (int k = 0; k <= half; ++k) {
+      const float hz = std::max(k * binHz, 1.0f);
+      const float pos = std::clamp((std::log(hz) - logMin) / perBand, 0.0f, static_cast<float>(kEqBands - 1));
+      const int b0 = std::min(static_cast<int>(pos), kEqBands - 2);
+      const float frac = pos - b0;
+      eqGain_[k] = std::pow(10.0f, (db[b0] * (1.0f - frac) + db[b0 + 1] * frac) / 20.0f);
+    }
+  }
   if (brightDb_ != shelfDb_) {
     // Rebuilt only when brightness changes, not every frame.
     shelfDb_ = brightDb_;
@@ -213,7 +235,7 @@ void VoiceEngine::processFrame() {
       const float frac = src - i0;
       e = env_[i0] * (1.0f - frac) + env_[i0 + 1] * frac;
     }
-    const float colour = e * shelf_[k];
+    const float colour = e * shelf_[k] * eqGain_[k];
     const float mag = synMag_[k] * colour;
 
     float delta = synFreq_[k] - k;

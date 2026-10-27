@@ -48,6 +48,7 @@ fun VoicesScreen(vm: MainViewModel, requireMic: (() -> Unit) -> Unit, modifier: 
                 Button(onClick = { requireMic(vm::toggleMonitor) }, modifier = Modifier.padding(top = 8.dp)) { Text(label) }
             }
         }
+        item { MyVoicesSection(vm, requireMic) }
         VoiceCategory.entries.forEach { category ->
             val presets = VoicePresets.all.filter { it.category == category }
             item {

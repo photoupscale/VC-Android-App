@@ -16,6 +16,7 @@ class VoiceProcessor(val sampleRate: Int) : Closeable {
 
     fun setVoice(voice: VoiceParams) {
         NativeBridge.nativeSetParams(handle, voice.pitchSemitones, voice.formantRatio, voice.brightnessDb, voice.breathiness, voice.mix)
+        NativeBridge.nativeSetEq(handle, voice.eqDb?.toFloatArray())
     }
 
     fun setEnabled(enabled: Boolean) = NativeBridge.nativeSetEnabled(handle, enabled)
